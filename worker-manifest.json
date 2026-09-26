@@ -10,15 +10,15 @@
   "scope": "./",
   "icons": [
     {
-      "src": "https://hucevbfupkllculloiom.supabase.co/storage/v1/object/public/app/20260926_180141.png",
+      "src": "https://hucevbfupkllculloiom.supabase.co/storage/v1/object/public/app/photo_2026-09-26_12-13-10.jpg",
       "sizes": "192x192",
-      "type": "image/png",
+      "type": "image/jpeg",
       "purpose": "any maskable"
     },
     {
-      "src": "https://hucevbfupkllculloiom.supabase.co/storage/v1/object/public/app/20260926_180141.png",
+      "src": "https://hucevbfupkllculloiom.supabase.co/storage/v1/object/public/app/photo_2026-09-26_12-13-10.jpg",
       "sizes": "512x512",
-      "type": "image/png",
+      "type": "image/jpeg",
       "purpose": "any maskable"
     }
   ],
