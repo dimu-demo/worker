@@ -526,13 +526,16 @@
                         subscribeToServerPush();
                     }
                 });
-                navigator.serviceWorker.register('sw.js')
+                navigator.serviceWorker.register('sw.js', { scope: './' })
                     .then(registration => {
                         swRegistration = registration;
                         console.log('Service Worker registered:', registration);
-                        if ('Notification' in window && Notification.permission === 'granted') {
-                            subscribeToServerPush();
-                        }
+                        navigator.serviceWorker.ready.then(readyReg => {
+                            swRegistration = readyReg;
+                            if ('Notification' in window && Notification.permission === 'granted') {
+                                subscribeToServerPush();
+                            }
+                        });
                     })
                     .catch(error => {
                         console.log('Service Worker registration failed:', error);
@@ -686,12 +689,31 @@
         }
 
         async function subscribeToServerPush() {
-            if (!('Notification' in window) || Notification.permission !== 'granted' || !swRegistration) return;
-            if (!swRegistration.pushManager) return;
+            if (!('Notification' in window) || Notification.permission !== 'granted') return;
+            let reg = swRegistration;
+            if (!reg || !reg.active || !reg.pushManager) {
+                try {
+                    reg = await Promise.race([
+                        navigator.serviceWorker.ready,
+                        new Promise((_, reject) => setTimeout(() => reject(new Error('Service Worker не активировался за 15 сек')), 15000))
+                    ]);
+                    swRegistration = reg;
+                } catch (error) {
+                    pushSubscribeError = error.message || String(error);
+                    if (typeof refreshPushDiag === 'function') refreshPushDiag();
+                    return;
+                }
+            }
+            if (!reg || !reg.pushManager) {
+                pushSubscribeError = 'pushManager недоступен';
+                if (typeof refreshPushDiag === 'function') refreshPushDiag();
+                return;
+            }
             try {
-                let subscription = await swRegistration.pushManager.getSubscription();
+                pushSubscribeError = null;
+                let subscription = await reg.pushManager.getSubscription();
                 if (!subscription) {
-                    subscription = await swRegistration.pushManager.subscribe({
+                    subscription = await reg.pushManager.subscribe({
                         userVisibleOnly: true,
                         applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
                     });
@@ -725,7 +747,8 @@
             const support = 'Notification' in window;
             p('Notification API', support ? 'есть' : 'НЕТ', support);
             if (support) p('Разрешение', Notification.permission, Notification.permission === 'granted');
-            p('Service Worker', swRegistration ? 'regged' : 'НЕТ', !!swRegistration);
+            const swActive = !!(swRegistration && swRegistration.active);
+            p('Service Worker', swRegistration ? (swActive ? 'активен' : 'зарегистрирован, НЕ активен') : 'НЕТ', swActive);
             const pm = !!(swRegistration && swRegistration.pushManager);
             p('pushManager', pm ? 'есть' : 'НЕТ', pm);
             let sub = null;
