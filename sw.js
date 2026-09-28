@@ -1,4 +1,5 @@
-const CACHE_NAME = 'ot-doner-v1';
+const CACHE_NAME = 'ot-doner-v2';
+const BRAND_ICON = 'https://hucevbfupkllculloiom.supabase.co/storage/v1/object/public/app/20260926_1801411.png';
 const urlsToCache = [
   './',
   './index.html',
@@ -66,6 +67,50 @@ self.addEventListener('activate', event => {
           }
         })
       );
+    })
+  );
+});
+
+// Push event - server push (заготовки для будущих серверных уведомлений)
+self.addEventListener('push', event => {
+  let data = {};
+  try { data = event.data ? event.data.json() : {}; } catch (e) {}
+  const title = data.title || 'Новый заказ — ОТ ДОНЕР';
+  event.waitUntil(
+    self.registration.showNotification(title, {
+      body: data.body || '',
+      icon: BRAND_ICON,
+      badge: BRAND_ICON,
+      tag: data.tag || 'otdoner-order',
+      vibrate: [200, 100, 200],
+      data: { url: './worker.html' }
+    })
+  );
+});
+
+// Push-подписка протухла — попросить страницу перевыпустить
+self.addEventListener('pushsubscriptionchange', event => {
+  event.waitUntil(
+    clients.matchAll({ type: 'window' }).then(clientList => {
+      clientList.forEach(client => client.postMessage({ type: 'push-renew' }));
+    })
+  );
+});
+
+// Notification click - открыть/сфокусировать панель сотрудника
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  const targetUrl = (event.notification.data && event.notification.data.url) || './worker.html';
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientList => {
+      for (const client of clientList) {
+        if (client.url.includes('worker.html') && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow(targetUrl);
+      }
     })
   );
 });
