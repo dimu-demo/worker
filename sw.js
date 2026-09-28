@@ -1,77 +1,64 @@
-const CACHE_NAME = 'ot-doner-v2';
+const CACHE_NAME = 'ot-doner-v3';
 const BRAND_ICON = 'https://hucevbfupkllculloiom.supabase.co/storage/v1/object/public/app/20260926_1801411.png';
-const urlsToCache = [
-  './',
-  './index.html',
-  './admin.html',
-  './worker.html',
-  './manifest.json',
-  'https://cdn.tailwindcss.com',
-  'https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&family=Rubik:wght@400;500;600;700&display=swap',
-  'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2'
-];
+const sameOriginToCache = ['./worker.html', './manifest.json'];
 
-// Install event - cache resources
+// Install: cache only what is guaranteed same-origin, never block activation
 self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then(cache => {
-        console.log('Opened cache');
-        return cache.addAll(urlsToCache);
-      })
+      .then(cache => Promise.all(
+        sameOriginToCache.map(url => cache.add(url).catch(() => {}))
+      ))
+      .then(() => self.skipWaiting())
   );
 });
 
-// Fetch event - serve from cache, fallback to network
-self.addEventListener('fetch', event => {
-  event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        // Cache hit - return response
-        if (response) {
-          return response;
-        }
-
-        // Clone the request
-        const fetchRequest = event.request.clone();
-
-        return fetch(fetchRequest).then(response => {
-          // Check if valid response
-          if (!response || response.status !== 200 || response.type !== 'basic') {
-            return response;
-          }
-
-          // Clone the response
-          const responseToCache = response.clone();
-
-          caches.open(CACHE_NAME)
-            .then(cache => {
-              cache.put(event.request, responseToCache);
-            });
-
-          return response;
-        });
-      })
-  );
-});
-
-// Activate event - clean up old caches
 self.addEventListener('activate', event => {
-  const cacheWhitelist = [CACHE_NAME];
   event.waitUntil(
-    caches.keys().then(cacheNames => {
-      return Promise.all(
-        cacheNames.map(cacheName => {
-          if (cacheWhitelist.indexOf(cacheName) === -1) {
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    })
+    Promise.all([
+      caches.keys().then(cacheNames => Promise.all(
+        cacheNames.filter(name => name !== CACHE_NAME).map(name => caches.delete(name))
+      )),
+      clients.claim()
+    ])
   );
 });
 
-// Push event - server push (заготовки для будущих серверных уведомлений)
+// Fetch: network-first for pages (so deploys are seen), cache fallback offline
+self.addEventListener('fetch', event => {
+  const request = event.request;
+  if (request.method !== 'GET') return;
+
+  let url;
+  try { url = new URL(request.url); } catch (e) { return; }
+
+  if (url.origin !== self.location.origin) return;
+
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request)
+        .then(response => {
+          const copy = response.clone();
+          caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
+          return response;
+        })
+        .catch(() => caches.match(request).then(cached => cached || caches.match('./worker.html')))
+    );
+    return;
+  }
+
+  event.respondWith(
+    caches.match(request).then(cached => cached || fetch(request).then(response => {
+      if (response && response.status === 200) {
+        const copy = response.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
+      }
+      return response;
+    }).catch(() => cached))
+  );
+});
+
+// Push: server-delivered order notifications
 self.addEventListener('push', event => {
   let data = {};
   try { data = event.data ? event.data.json() : {}; } catch (e) {}
@@ -88,7 +75,7 @@ self.addEventListener('push', event => {
   );
 });
 
-// Push-подписка протухла — попросить страницу перевыпустить
+// Subscription expired: ask the page to re-subscribe
 self.addEventListener('pushsubscriptionchange', event => {
   event.waitUntil(
     clients.matchAll({ type: 'window' }).then(clientList => {
@@ -97,20 +84,15 @@ self.addEventListener('pushsubscriptionchange', event => {
   );
 });
 
-// Notification click - открыть/сфокусировать панель сотрудника
 self.addEventListener('notificationclick', event => {
   event.notification.close();
   const targetUrl = (event.notification.data && event.notification.data.url) || './worker.html';
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientList => {
       for (const client of clientList) {
-        if (client.url.includes('worker.html') && 'focus' in client) {
-          return client.focus();
-        }
+        if (client.url.indexOf('worker.html') !== -1 && 'focus' in client) return client.focus();
       }
-      if (clients.openWindow) {
-        return clients.openWindow(targetUrl);
-      }
+      return clients.openWindow ? clients.openWindow(targetUrl) : null;
     })
   );
 });
