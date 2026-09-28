@@ -478,18 +478,6 @@
         </div>
     </div>
 
-    <!-- Push diagnostics (temporary) -->
-    <div id="push-diag" class="fixed top-16 right-2 left-2 sm:left-auto sm:max-w-xs z-[60] bg-dark-900 border border-dark-700 rounded-2xl p-3 shadow-xl shadow-black/50">
-        <div class="flex items-center justify-between gap-2">
-            <p class="text-xs font-bold text-white">Диагностика push</p>
-            <div class="flex gap-2">
-                <button onclick="refreshPushDiag()" class="text-xs font-bold text-gray-300 bg-dark-800 border border-dark-700 rounded-lg px-2 py-1">Обновить</button>
-                <button onclick="document.getElementById('push-diag').classList.add('hidden')" class="text-gray-500 hover:text-white px-1">✕</button>
-            </div>
-        </div>
-        <div id="push-diag-body" class="text-xs text-gray-300 mt-2 space-y-1 font-mono"></div>
-    </div>
-
     <div id="toast" class="fixed bottom-4 right-4 left-4 sm:left-auto z-50 bg-flame-600 text-white px-4 py-3 rounded-xl font-bold text-sm opacity-0 translate-y-8 pointer-events-none transition-all"></div>
 
     <script>
@@ -509,7 +497,6 @@
         let ordersLoadedOnce = false;
         const BRAND_ICON = 'https://hucevbfupkllculloiom.supabase.co/storage/v1/object/public/app/20260926_1801411.png';
         const VAPID_PUBLIC_KEY = 'BL-FkS_5mUITrSm2U9DS0VWYH8GYqntRCMXV6shKimep8GmFyKTeg-2_q5ZKvp_a7dGkCHduM7rSrI-ajQs6Mlk';
-        let pushSubscribeError = null;
 
         // Initialize
         window.onload = function () {
@@ -699,18 +686,12 @@
                     ]);
                     swRegistration = reg;
                 } catch (error) {
-                    pushSubscribeError = error.message || String(error);
-                    if (typeof refreshPushDiag === 'function') refreshPushDiag();
+                    console.warn('Push subscribe: no active Service Worker:', error);
                     return;
                 }
             }
-            if (!reg || !reg.pushManager) {
-                pushSubscribeError = 'pushManager недоступен';
-                if (typeof refreshPushDiag === 'function') refreshPushDiag();
-                return;
-            }
+            if (!reg || !reg.pushManager) return;
             try {
-                pushSubscribeError = null;
                 let subscription = await reg.pushManager.getSubscription();
                 if (!subscription) {
                     subscription = await reg.pushManager.subscribe({
@@ -731,48 +712,9 @@
                     }, { onConflict: 'endpoint' });
                 if (error) throw error;
                 console.log('Push subscription saved to server');
-                if (typeof refreshPushDiag === 'function') refreshPushDiag();
             } catch (error) {
                 console.warn('Server push subscription failed:', error);
-                pushSubscribeError = (error && (error.message || String(error))) || 'unknown';
-                if (typeof refreshPushDiag === 'function') refreshPushDiag();
             }
-        }
-
-        async function refreshPushDiag() {
-            const box = document.getElementById('push-diag-body');
-            if (!box) return;
-            const lines = [];
-            const p = (k, v, ok) => lines.push(`<div class="${ok ? 'text-emerald-400' : 'text-red-400'}">${k}: ${v}</div>`);
-            const support = 'Notification' in window;
-            p('Notification API', support ? 'есть' : 'НЕТ', support);
-            if (support) p('Разрешение', Notification.permission, Notification.permission === 'granted');
-            const swActive = !!(swRegistration && swRegistration.active);
-            p('Service Worker', swRegistration ? (swActive ? 'активен' : 'зарегистрирован, НЕ активен') : 'НЕТ', swActive);
-            const pm = !!(swRegistration && swRegistration.pushManager);
-            p('pushManager', pm ? 'есть' : 'НЕТ', pm);
-            let sub = null;
-            if (pm) {
-                try { sub = await swRegistration.pushManager.getSubscription(); }
-                catch (e) { p('getSubscription', e.message, false); }
-            }
-            p('Подписка', sub ? 'есть' : 'НЕТ', !!sub);
-            p('Ошибки подписки', pushSubscribeError || 'нет', !pushSubscribeError);
-            if (sub) {
-                try {
-                    const { count, error } = await supabaseClient
-                        .from('push_subscriptions')
-                        .select('endpoint', { count: 'exact', head: true });
-                    p('В таблице', error ? 'ERR ' + error.message : `${count} зап.`, !error && count > 0);
-                } catch (e) {
-                    p('В таблице', 'ERR ' + e.message, false);
-                }
-            }
-            box.innerHTML = lines.join('');
-        }
-
-        if (document.getElementById('push-diag')) {
-            window.addEventListener('load', () => setTimeout(refreshPushDiag, 1500));
         }
 
         function formatPhoneDisplay(phone) {
