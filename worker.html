@@ -109,7 +109,6 @@
     </style>
 <style>#logout-btn-header,#logout-btn,#notify-prompt{display:none!important}</style>
     <script src="./config.js"></script>
-    <script>window.DEMU_CONFIG||document.write('<scr'+'ipt src="https://dimu-studio.dimuemail.workers.dev/pwa/config.js"></scr'+'ipt>');</script>
 </head>
 <body class="min-h-screen antialiased">
     <header class="border-b border-dark-700 bg-dark-900/95 sticky top-0 z-30">
@@ -1808,6 +1807,54 @@
              'showOrderNotification', 'subscribeToServerPush'].forEach(mute);
         })();
     </script>
+    <style>
+        #dimu-demo-badge {
+            position: fixed; right: 12px; bottom: calc(14px + var(--sab, 0px));
+            z-index: 2147483000; display: flex; align-items: center; gap: 9px;
+            max-width: calc(100vw - 24px); padding: 7px 8px 7px 10px;
+            background: #ffffff; color: #0a0a0a;
+            border: 2px solid #0a0a0a; border-radius: 14px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, .35);
+            font-family: Rubik, sans-serif; text-decoration: none;
+        }
+        #dimu-demo-badge img { width: 26px; height: 26px; object-fit: contain; flex: none; }
+        #dimu-demo-badge .dimu-badge-sep { width: 2px; height: 24px; background: #0a0a0a; flex: none; }
+        #dimu-demo-badge .dimu-badge-kicker {
+            font-size: 8px; font-weight: 700; letter-spacing: .16em;
+            text-transform: uppercase; color: #4a4a4a; line-height: 1.2;
+        }
+        #dimu-demo-badge .dimu-badge-brand {
+            font-family: Montserrat, sans-serif; font-size: 13px; line-height: 1.25;
+            font-weight: 900; letter-spacing: .02em; color: #0a0a0a; white-space: nowrap;
+        }
+        #dimu-demo-badge .dimu-badge-brand span { font-weight: 500; color: #4a4a4a; }
+        #dimu-demo-badge .dimu-badge-made {
+            font-family: Rubik, sans-serif; font-size: 10px; font-weight: 500;
+            font-style: normal; letter-spacing: .01em; color: #4a4a4a;
+        }
+        #dimu-demo-badge > span:not([class]) { min-width: 0; }
+        #dimu-demo-badge .dimu-badge-close {
+            flex: none; width: 18px; height: 18px; display: flex; align-items: center;
+            justify-content: center; border: 1px solid #0a0a0a; border-radius: 50%;
+            font-size: 13px; line-height: 1; cursor: pointer; background: #fff; color: #0a0a0a;
+        }
+        #dimu-demo-badge.dimu-on-index { bottom: calc(84px + var(--sab, 0px)); }
+        @media (max-width: 400px) {
+            #dimu-demo-badge { gap: 7px; padding: 6px 7px 6px 8px; }
+            #dimu-demo-badge img { width: 22px; height: 22px; }
+            #dimu-demo-badge .dimu-badge-kicker { font-size: 7px; letter-spacing: .1em; }
+            #dimu-demo-badge .dimu-badge-brand { font-size: 11px; }
+            #dimu-demo-badge .dimu-badge-made { font-size: 9px; }
+        }
+    </style>
+    <a id="dimu-demo-badge" href="https://dimu-studio.dimuemail.workers.dev/" target="_blank" rel="noopener">
+        <img src="./dimu-badge-icon.png" alt="Dimu Studio">
+        <i class="dimu-badge-sep"></i>
+        <span class="dimu-badge-kicker">Демонстрация сайта</span>
+        <i class="dimu-badge-sep"></i>
+        <span class="dimu-badge-brand"><i class="dimu-badge-made">Сделано</i> Dimu<span>Studio</span></span>
+        <span class="dimu-badge-close" title="Закрыть" onclick="event.preventDefault();event.stopPropagation();this.closest('#dimu-demo-badge').style.display='none'">×</span>
+    </a>
     <script>
 (function () {
     var RE = /ОТ[\s-]?ДОНЕР/gi, TO = 'Dimu doner';
