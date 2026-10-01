@@ -107,6 +107,7 @@
             .orders-skeleton { transition: none; }
         }
     </style>
+    <script src="./config.js"></script>
 </head>
 <body class="min-h-screen antialiased">
     <header class="border-b border-dark-700 bg-dark-900/95 sticky top-0 z-30">
@@ -481,8 +482,8 @@
     <div id="toast" class="fixed bottom-4 right-4 left-4 sm:left-auto z-50 bg-flame-600 text-white px-4 py-3 rounded-xl font-bold text-sm opacity-0 translate-y-8 pointer-events-none transition-all"></div>
 
     <script>
-        const SUPABASE_URL = 'https://hucevbfupkllculloiom.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh1Y2V2YmZ1cGtsbGN1bGxvaW9tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk4MTI0ODksImV4cCI6MjEwNTM4ODQ4OX0.9HN9xg5-lsmRmMAEuPG7goML-ybX4iGj6pWdE4IuTdU';
+        const SUPABASE_URL = window.DEMU_CONFIG.supabaseUrl;
+        const SUPABASE_ANON_KEY = window.DEMU_CONFIG.supabaseAnonKey;
 
         const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         let isWorking = false;
