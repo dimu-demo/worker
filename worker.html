@@ -107,7 +107,7 @@
             .orders-skeleton { transition: none; }
         }
     </style>
-<style>#logout-btn-header,#logout-btn{display:none!important}</style>
+<style>#logout-btn-header,#logout-btn,#notify-prompt{display:none!important}</style>
 </head>
 <body class="min-h-screen antialiased">
     <header class="border-b border-dark-700 bg-dark-900/95 sticky top-0 z-30">
@@ -117,12 +117,6 @@
                 <h1 class="font-heading font-black text-xl sm:text-2xl uppercase">Панель сотрудника</h1>
             </div>
             <div class="flex items-center gap-3">
-                <button id="notif-btn" onclick="handleNotifBtnClick()" class="hidden relative w-10 h-10 rounded-xl bg-dark-800 border border-dark-700 flex items-center justify-center text-gray-400 hover:text-white transition-colors" title="Уведомления о заказах">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
-                    </svg>
-                    <span id="notif-dot" class="absolute -top-1 -right-1 w-3 h-3 bg-flame-500 rounded-full hidden"></span>
-                </button>
                 <span id="work-status-text" class="text-sm font-bold text-gray-400">Не работаю</span>
                 <button id="work-toggle-btn" onclick="toggleWorkMode()" class="w-14 h-8 bg-dark-700 rounded-full relative transition-colors cursor-pointer border-0 p-0">
                     <div id="work-toggle-dot" class="absolute top-1 left-1 w-6 h-6 bg-white rounded-full transition-transform"></div>
@@ -786,10 +780,6 @@
                 updateWorkModeUI();
                 showMainInterface();
                 subscribeToRealtimeOrders();
-
-                if ('Notification' in window && Notification.permission === 'granted') {
-                    subscribeToServerPush();
-                }
             } catch (error) {
                 console.error('Demo auth error:', error);
                 showMainInterface();
@@ -851,24 +841,17 @@
                         // Only reload if worker is in working mode
                         if (isWorking) {
                             loadOrders();
-                            // Check if this is a new available order
-                            if (!payload.new.give_order) {
-                                showNewOrderNotification(`Новый заказ #${payload.new.id}`);
-                                playNotificationSound();
-                            }
                         }
                     })
                     .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'orders' }, payload => {
                         console.log('Order updated:', payload);
                         // Only reload if this order is relevant to current worker
                         if (isWorking) {
-                            const orderId = payload.new.id;
                             const workerId = payload.new.worker_id;
                             
                             // If order was taken by this worker or assigned to this worker
                             if (workerId === currentWorkerId || payload.old.worker_id === currentWorkerId) {
                                 loadOrders();
-                                showAutoUpdateNotification(`Заказ #${orderId} обновлен`);
                             }
                         }
                     })
@@ -1767,56 +1750,6 @@
         }
 
         function showAutoUpdateNotification(message) {
-            const notification = document.createElement('div');
-            notification.className = 'fixed top-20 right-4 bg-emerald-600 text-white px-4 py-2 rounded-xl font-bold text-xs sm:text-sm shadow-lg z-50 animate-pulse';
-            notification.textContent = message;
-            document.body.appendChild(notification);
-            
-            setTimeout(() => {
-                notification.remove();
-            }, 3000);
-        }
-
-        function showNewOrderNotification(message) {
-            const notification = document.createElement('div');
-            notification.className = 'fixed top-4 right-4 bg-flame-600 text-white px-4 py-3 rounded-xl font-bold text-xs sm:text-sm shadow-lg z-50 animate-bounce';
-            notification.style.animation = 'bounce 0.5s ease infinite';
-            notification.innerHTML = `
-                <div class="flex items-center gap-2">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
-                    </svg>
-                    <span>${message}</span>
-                </div>
-            `;
-            document.body.appendChild(notification);
-            
-            setTimeout(() => {
-                notification.remove();
-            }, 5000);
-        }
-
-        function playNotificationSound() {
-            // Create audio context for notification sound
-            try {
-                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                const oscillator = audioContext.createOscillator();
-                const gainNode = audioContext.createGain();
-                
-                oscillator.connect(gainNode);
-                gainNode.connect(audioContext.destination);
-                
-                oscillator.frequency.value = 800; // Frequency in Hz
-                oscillator.type = 'sine';
-                
-                gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-                gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
-                
-                oscillator.start(audioContext.currentTime);
-                oscillator.stop(audioContext.currentTime + 0.5);
-            } catch (error) {
-                console.log('Audio notification not supported:', error);
-            }
         }
 
         // Auto-refresh orders every 30 seconds when working
@@ -1865,6 +1798,13 @@
                 await checkWorkerStatus();
             }
         }, 30000);
+    </script>
+    <script id="demo-no-order-alerts">
+        (function () {
+            var mute = function (name) { if (typeof window[name] === 'function') window[name] = function () {}; };
+            ['showNewOrderNotification', 'playNotificationSound', 'showAutoUpdateNotification',
+             'showOrderNotification', 'subscribeToServerPush'].forEach(mute);
+        })();
     </script>
     <script>
 (function () {
